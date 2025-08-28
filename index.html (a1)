@@ -1,0 +1,1375 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hit and Blow game(number baseball, Cows and Bulls, mastermind) by macu</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/tone@14.7.58/build/Tone.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #1f2937, #111827);
+            color: #f3f4f6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            width: 100%;
+            background-color: #1f2937;
+            border-radius: 1.5rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            padding: 3rem;
+            border: 2px solid #374151;
+            transition: all 0.5s ease-in-out;
+            animation: fadeIn 0.8s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .rainbow-text {
+            background-image: linear-gradient(to right, #ef4444, #f97316, #fde047, #22c55e, #0ea5e9, #6366f1, #a855f7, #ec4899);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 700;
+        }
+        .color-cell, .number-cell {
+            width: 2.5rem;
+            height: 2.5rem;
+            border-radius: 9999px;
+            border: 2px solid #4b5563;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s, background-color 0.3s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.25rem;
+            font-weight: bold;
+        }
+        .current-guess-cell {
+            border: 3px solid #6b7280;
+            cursor: pointer;
+        }
+        .current-guess-cell.active {
+            border-color: #60a5fa;
+            box-shadow: 0 0 15px rgba(96, 165, 250, 0.5);
+        }
+        .color-cell:hover, .number-cell:hover, .selector-cell:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+        }
+        .feedback-peg {
+            width: 0.75rem;
+            height: 0.75rem;
+            border-radius: 9999px;
+        }
+        .hit { background-color: #ef4444; }
+        .blow { background-color: #22c55e; }
+        .miss { background-color: #6b7280; }
+        .selector-cell {
+            width: 3rem;
+            height: 3rem;
+            border-radius: 9999px;
+            border: 3px solid transparent;
+            cursor: pointer;
+            transition: transform 0.2s, border-color 0.2s, background-color 0.3s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        .selector-cell.active {
+            border-color: #60a5fa;
+            transform: scale(1.1);
+        }
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            backdrop-filter: blur(5px);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+        }
+        .modal.open {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal-content {
+            background-color: #1f2937;
+            padding: 2.5rem;
+            border-radius: 1.5rem;
+            border: 2px solid #374151;
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+            transform: translateY(-20px);
+            transition: transform 0.3s;
+        }
+        .modal.open .modal-content {
+            transform: translateY(0);
+        }
+        .hint-box, .analysis-box {
+            background-color: rgba(255, 255, 255, 0.1);
+            padding: 1rem;
+            border-radius: 0.75rem;
+            min-height: 4rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            margin-top: 1rem;
+            font-style: italic;
+        }
+        .win-glow {
+            box-shadow: 0 0 40px 10px rgba(96, 165, 250, 0.7);
+            animation: pulse-glow 2s infinite alternate;
+        }
+        @keyframes pulse-glow {
+            from { box-shadow: 0 0 40px 10px rgba(96, 165, 250, 0.7); }
+            to { box-shadow: 0 0 60px 15px rgba(96, 165, 250, 1); }
+        }
+        .lose-shake {
+            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+            transform: translate3d(0, 0, 0);
+            backface-visibility: hidden;
+            perspective: 1000px;
+        }
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+        .scrollbar-thin::-webkit-scrollbar {
+            width: 8px;
+        }
+        .scrollbar-thin::-webkit-scrollbar-track {
+            background: #2d3748;
+        }
+        .scrollbar-thin::-webkit-scrollbar-thumb {
+            background-color: #6b7280;
+            border-radius: 20px;
+            border: 2px solid #2d3748;
+        }
+        .tab-button {
+            background-color: #374151;
+            border-bottom-left-radius: 0;
+            border-bottom-right-radius: 0;
+        }
+        .tab-button.active {
+            background-color: #1f2937;
+            border-bottom: 2px solid #60a5fa;
+            font-weight: bold;
+        }
+        .pause-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(31, 41, 55, 0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #60a5fa;
+            border-radius: 1.5rem;
+            z-index: 50;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100">
+
+    <!-- 로그인 / 회원가입 모달 -->
+    <div id="auth-modal" class="modal open">
+        <div class="modal-content">
+            <h1 class="text-3xl font-bold mb-4 rainbow-text">로그인 / 회원가입</h1>
+            <input type="text" id="username-input" placeholder="사용자 이름" class="w-full px-4 py-2 mb-4 rounded-lg bg-gray-700 text-white placeholder-gray-400 border border-gray-600 focus:outline-none focus:border-indigo-500">
+            <input type="password" id="password-input" placeholder="비밀번호" class="w-full px-4 py-2 mb-4 rounded-lg bg-gray-700 text-white placeholder-gray-400 border border-gray-600 focus:outline-none focus:border-indigo-500">
+            <div class="flex justify-center space-x-4">
+                <button id="login-button" class="px-8 py-4 rounded-full font-bold bg-indigo-500 hover:bg-indigo-600 transition-colors text-white text-lg">로그인</button>
+                <button id="register-button" class="px-8 py-4 rounded-full font-bold bg-purple-500 hover:bg-purple-600 transition-colors text-white text-lg">회원가입</button>
+            </div>
+            <div id="auth-message" class="mt-4 text-red-400"></div>
+        </div>
+    </div>
+
+    <!-- 시작 화면 모달 -->
+    <div id="start-screen-modal" class="modal">
+        <div class="modal-content">
+            <h1 class="text-4xl font-bold mb-4 rainbow-text">hit-and-blow</h1>
+            <p class="text-sm text-gray-400 mb-6">
+                비밀 코드를 추리하여 맞혀보세요!
+            </p>
+            <div class="flex flex-col space-y-4">
+                <button id="start-solo-button" class="px-8 py-4 rounded-full font-bold bg-indigo-500 hover:bg-indigo-600 transition-colors text-white text-lg">색상 모드 (마스터마인드)</button>
+                <button id="start-number-button" class="px-8 py-4 rounded-full font-bold bg-purple-500 hover:bg-purple-600 transition-colors text-white text-lg">숫자 모드 (숫자 야구)</button>
+                <button id="start-random-button" class="px-8 py-4 rounded-full font-bold bg-gray-600 hover:bg-gray-700 transition-colors text-white text-lg">랜덤 모드 ✨</button>
+                <button id="load-game-button" class="px-8 py-4 rounded-full font-bold bg-gray-600 hover:bg-gray-700 transition-colors text-white text-lg">이어서 하기</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 메인 게임 컨테이너 -->
+    <div id="game-container" class="container hidden relative">
+        <div id="pause-overlay" class="pause-overlay hidden">
+            게임 일시정지됨
+        </div>
+
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-bold rainbow-text">hit-and-blow</h1>
+            <div class="text-sm">
+                <div class="font-bold">이름: <span id="player-name-display"></span></div>
+                <div class="font-bold">경력: <span id="player-join-date"></span></div>
+                <div class="font-bold">레벨: <span id="player-level-display"></span></div>
+                <div class="font-bold">경험치: <span id="player-xp-display"></span> XP</div>
+            </div>
+        </div>
+        
+        <div class="flex flex-col md:flex-row items-center justify-between mb-6 space-y-4 md:space-y-0 md:space-x-4">
+            <div class="flex items-center space-x-2">
+                <span class="text-sm">모드:</span>
+                <button id="mode-toggle" class="px-4 py-2 rounded-full font-bold bg-indigo-500 hover:bg-indigo-600 transition-colors text-white">색상</button>
+            </div>
+            <div class="flex items-center space-x-4">
+                <div class="flex items-center space-x-2">
+                    <label class="text-sm">정답 중복: <input type="checkbox" id="allow-duplicates" class="ml-1"></label>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <label class="text-sm">개수:</label>
+                    <input type="number" id="color-count" min="1" max="16" value="6" class="w-16 bg-gray-700 text-center rounded-lg px-2 py-1 text-sm border border-gray-600 focus:outline-none focus:border-indigo-500">
+                </div>
+                <div class="flex items-center space-x-2">
+                    <label class="text-sm">길이:</label>
+                    <input type="number" id="code-length" min="1" max="16" value="4" class="w-16 bg-gray-700 text-center rounded-lg px-2 py-1 text-sm border border-gray-600 focus:outline-none focus:border-indigo-500">
+                </div>
+            </div>
+        </div>
+
+        <div id="game-board" class="game-board-container mb-6">
+            <div id="guess-history" class="w-full max-h-[400px] overflow-y-auto pr-4 scrollbar-thin scrollbar-thumb-gray-500 scrollbar-track-gray-800">
+                <!-- 추측 기록이 여기에 동적으로 추가됩니다 -->
+            </div>
+        </div>
+        
+        <div id="hint-box" class="hint-box text-sm mb-4"></div>
+
+        <div id="status-area" class="text-center mb-6">
+            <div class="flex justify-center items-center space-x-4 mb-2">
+                <div>시도 횟수: <span id="attempts-count">0</span></div>
+                <div>점수: <span id="score">0</span></div>
+                <div>시간: <span id="game-time">0</span>초</div>
+            </div>
+            <div class="flex justify-center items-center space-x-4">
+                <div>칭호: <span id="title-display" class="font-bold text-lg text-gray-400">_</span></div>
+            </div>
+        </div>
+        
+        <div id="save-status" class="text-sm text-center text-gray-400 mb-4"></div>
+
+        <div class="text-center mb-6">
+            <div id="current-guess-row" class="flex justify-center gap-2 mb-4"></div>
+            <div class="flex justify-center space-x-4">
+                <button id="check-button" class="px-8 py-3 rounded-full font-bold bg-green-500 hover:bg-green-600 transition-colors text-white">확인</button>
+                <button id="cancel-button" class="px-8 py-3 rounded-full font-bold bg-red-500 hover:bg-red-600 transition-colors text-white">취소</button>
+                <button id="hint-button" class="px-8 py-3 rounded-full font-bold bg-blue-500 hover:bg-blue-600 transition-colors text-white">힌트 얻기 ✨</button>
+                <button id="suggest-guess-button" class="px-8 py-3 rounded-full font-bold bg-teal-500 hover:bg-teal-600 transition-colors text-white">다음 추측 추천 ✨</button>
+            </div>
+        </div>
+
+        <div id="selectors-container" class="flex flex-wrap justify-center gap-2 mb-4"></div>
+
+        <div class="flex justify-center space-x-4 mt-6">
+            <button id="restart-button" class="px-6 py-3 rounded-full bg-gray-700 hover:bg-gray-600 transition-colors text-white font-bold">재시작</button>
+            <button id="pause-button" class="px-6 py-3 rounded-full bg-gray-700 hover:bg-gray-600 transition-colors text-white font-bold">일시정지</button>
+            <button id="resume-button" class="px-6 py-3 rounded-full bg-yellow-500 hover:bg-yellow-600 transition-colors text-white font-bold hidden">계속하기</button>
+            <button id="save-game-button" class="px-6 py-3 rounded-full bg-yellow-500 hover:bg-yellow-600 transition-colors text-white font-bold">수동 저장</button>
+            <button id="main-menu-button" class="px-6 py-3 rounded-full bg-gray-700 hover:bg-gray-600 transition-colors text-white font-bold">메인 메뉴</button>
+        </div>
+        
+        <!-- 게임 추가 정보 버튼들 -->
+        <div class="flex justify-center space-x-4 mt-6">
+            <button id="view-stats-button" class="px-6 py-3 rounded-full bg-gray-700 hover:bg-gray-600 transition-colors text-white font-bold">통계 보기</button>
+            <button id="view-history-button" class="px-6 py-3 rounded-full bg-gray-700 hover:bg-gray-600 transition-colors text-white font-bold">게임 역사</button>
+            <button id="view-how-to-play-button" class="px-6 py-3 rounded-full bg-gray-700 hover:bg-gray-600 transition-colors text-white font-bold">게임 방법</button>
+            <button id="chat-button" class="px-6 py-3 rounded-full bg-purple-500 hover:bg-purple-600 transition-colors text-white font-bold">챗봇과 대화</button>
+            <a href="https://ko.wikipedia.org/wiki/%EC%88%AB%EC%9E%90%EC%95%BC%EA%B5%AC_(%EA%B2%8C%EC%9E%84)" target="_blank" class="px-6 py-3 rounded-full bg-gray-700 hover:bg-gray-600 transition-colors text-white font-bold">위키피디아</a>
+        </div>
+
+        <p id="credit-text" class="text-center text-sm text-gray-500 mt-6">
+            Thanks a lot for playing my game. Made by MACU, supported by GEMINI, motivated from NS 51worldwidegames - HIT and BLOW contents. Special thanks for all of you(play(use)er). Contact : rrjmkkshxrmwjkmcyt02@gmail.com
+        </p>
+
+    </div>
+
+    <!-- 미니게임 / 통계 / 크레딧 페이지 컨테이너 -->
+    <div id="additional-content-container" class="container hidden">
+        <div class="flex justify-center mb-6">
+            <button id="stats-tab" class="tab-button active px-6 py-3 rounded-t-xl text-lg hover:bg-gray-700">게임 통계</button>
+            <button id="minigame-tab" class="tab-button px-6 py-3 rounded-t-xl text-lg hover:bg-gray-700">미니게임</button>
+            <button id="chat-tab" class="tab-button px-6 py-3 rounded-t-xl text-lg hover:bg-gray-700">챗봇</button>
+            <button id="history-tab" class="tab-button px-6 py-3 rounded-t-xl text-lg hover:bg-gray-700">게임 역사</button>
+            <button id="how-to-play-tab" class="tab-button px-6 py-3 rounded-t-xl text-lg hover:bg-gray-700">게임 방법</button>
+        </div>
+        <div id="content-display" class="p-6 bg-[#1f2937] rounded-b-xl border border-gray-700 max-h-[600px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-500 scrollbar-track-gray-800">
+            <!-- 탭 내용이 여기에 동적으로 로드됩니다 -->
+        </div>
+        <div class="flex justify-center mt-6">
+            <button id="back-to-main-button" class="px-6 py-3 rounded-full bg-gray-700 hover:bg-gray-600 transition-colors text-white font-bold">메인 게임으로 돌아가기</button>
+        </div>
+    </div>
+
+    <!-- 게임 종료/승리 모달 -->
+    <div id="game-modal" class="modal">
+        <div class="modal-content">
+            <h2 id="modal-title" class="text-3xl font-bold mb-4 text-indigo-400"></h2>
+            <div id="modal-content" class="text-gray-300"></div>
+            <p id="final-stats" class="text-xl mt-4"></p>
+            <div id="gemini-analysis-area" class="mt-8">
+                <button id="analyze-game-button" class="px-6 py-3 rounded-full font-bold bg-blue-500 hover:bg-blue-600 transition-colors text-white">게임 분석하기 ✨</button>
+                <div id="analysis-text" class="analysis-box mt-4"></div>
+            </div>
+            <button id="new-game-button" class="mt-8 px-6 py-3 rounded-full bg-indigo-500 hover:bg-indigo-600 transition-colors font-bold text-white">새 게임</button>
+        </div>
+    </div>
+
+    <!-- 소리 설정 모달 -->
+    <div id="sound-settings-modal" class="modal">
+        <div class="modal-content">
+            <h2 class="text-2xl font-bold mb-4">소리 설정</h2>
+            <div class="flex items-center justify-between mb-4">
+                <span>배경 음악</span>
+                <input type="checkbox" id="bg-music-toggle" class="form-checkbox h-5 w-5 text-indigo-600">
+            </div>
+            <div class="flex items-center justify-between">
+                <span>효과음</span>
+                <input type="checkbox" id="sfx-toggle" class="form-checkbox h-5 w-5 text-indigo-600">
+            </div>
+            <button id="close-sound-modal" class="mt-6 px-6 py-3 rounded-full bg-gray-700 hover:bg-gray-600 text-white font-bold">닫기</button>
+        </div>
+    </div>
+
+    <script>
+        // Game state variables
+        const COLORS = ["#ef4444", "#f97316", "#fde047", "#22c55e", "#0ea5e9", "#6366f1", "#a855f7", "#ec4899", "#84cc16", "#eab308", "#f43f5e", "#14b8a6", "#3b82f6", "#be123c", "#fca5a5", "#a78bfa"];
+        const NUMBERS = Array.from({ length: 16 }, (_, i) => i + 1);
+        let gameMode = 'color';
+        let codeLength = 4;
+        let colorCount = 6;
+        let allowDuplicates = false;
+        let secretCode = [];
+        let currentGuess = [];
+        let attempts = 0;
+        let score = 0;
+        let gameStartedAt = null;
+        let gameTime = 0;
+        let timerInterval = null;
+        let isPaused = false;
+        let history = [];
+        let userProfile = null;
+        let winStreak = 0;
+        let activeGuessIndex = 0;
+        let chatHistory = [];
+        
+        // DOM elements
+        const authModal = document.getElementById('auth-modal');
+        const usernameInput = document.getElementById('username-input');
+        const passwordInput = document.getElementById('password-input');
+        const authMessage = document.getElementById('auth-message');
+        const startScreenModal = document.getElementById('start-screen-modal');
+        const gameContainer = document.getElementById('game-container');
+        const additionalContentContainer = document.getElementById('additional-content-container');
+        const guessHistoryDiv = document.getElementById('guess-history');
+        const currentGuessRow = document.getElementById('current-guess-row');
+        const selectorsContainer = document.getElementById('selectors-container');
+        const modeToggle = document.getElementById('mode-toggle');
+        const colorCountInput = document.getElementById('color-count');
+        const codeLengthInput = document.getElementById('code-length');
+        const allowDuplicatesCheckbox = document.getElementById('allow-duplicates');
+        const hintBox = document.getElementById('hint-box');
+        const attemptsCountDisplay = document.getElementById('attempts-count');
+        const scoreDisplay = document.getElementById('score');
+        const gameTimeDisplay = document.getElementById('game-time');
+        const playerNameDisplay = document.getElementById('player-name-display');
+        const playerJoinDateDisplay = document.getElementById('player-join-date');
+        const playerLevelDisplay = document.getElementById('player-level-display');
+        const playerXpDisplay = document.getElementById('player-xp-display');
+        const titleDisplay = document.getElementById('title-display');
+        const gameModal = document.getElementById('game-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const modalContent = document.getElementById('modal-content');
+        const finalStatsDisplay = document.getElementById('final-stats');
+        const analysisText = document.getElementById('analysis-text');
+        const saveStatusDisplay = document.getElementById('save-status');
+        const contentDisplay = document.getElementById('content-display');
+        const loadGameButton = document.getElementById('load-game-button');
+        const chatButton = document.getElementById('chat-button');
+        const chatTab = document.getElementById('chat-tab');
+        const pauseButton = document.getElementById('pause-button');
+        const resumeButton = document.getElementById('resume-button');
+        const pauseOverlay = document.getElementById('pause-overlay');
+
+        // Sound settings
+        const synth = new Tone.Synth().toDestination();
+        const correctSynth = new Tone.PolySynth().toDestination();
+        let sfxEnabled = true;
+
+        function playWinSound() { if (sfxEnabled) correctSynth.triggerAttackRelease(["C4", "E4", "G4"], "8n"); }
+        function playLoseSound() { if (sfxEnabled) synth.triggerAttackRelease(["C3", "G2"], "8n"); }
+        function playCheckSound() { if (sfxEnabled) synth.triggerAttackRelease("C5", "32n"); }
+        function playSfx(freq) { if (sfxEnabled) synth.triggerAttackRelease(freq, "32n"); }
+
+        // --- Local "Database" and User Management ---
+        function getUsers() { return JSON.parse(localStorage.getItem('gameUsers')) || {}; }
+        function saveUsers(users) { localStorage.setItem('gameUsers', JSON.stringify(users)); }
+        function saveCurrentUser() { localStorage.setItem('currentUser', JSON.stringify(userProfile)); }
+        function loadCurrentUser() { return JSON.parse(localStorage.getItem('currentUser')); }
+
+        function registerUser(username, password) {
+            const users = getUsers();
+            if (users[username]) {
+                authMessage.textContent = '이미 존재하는 사용자 이름입니다.';
+                return false;
+            }
+            users[username] = {
+                password,
+                xp: 0,
+                level: 1,
+                title: "새내기",
+                joinDate: new Date().toISOString(),
+                records: [],
+                highestScore: 0,
+                shortestTime: null,
+                fewestAttempts: null
+            };
+            saveUsers(users);
+            authMessage.textContent = '회원가입 성공! 로그인하세요.';
+            return true;
+        }
+
+        function loginUser(username, password) {
+            const users = getUsers();
+            const user = users[username];
+            if (user && user.password === password) {
+                userProfile = user;
+                userProfile.username = username;
+                saveCurrentUser();
+                authMessage.textContent = '';
+                authModal.classList.remove('open');
+                startScreenModal.classList.add('open');
+                updatePlayerInfoUI();
+                return true;
+            }
+            authMessage.textContent = '로그인 실패: 사용자 이름 또는 비밀번호가 올바르지 않습니다.';
+            return false;
+        }
+
+        function updatePlayerInfoUI() {
+            if (userProfile) {
+                playerNameDisplay.textContent = userProfile.username;
+                playerLevelDisplay.textContent = userProfile.level;
+                playerXpDisplay.textContent = userProfile.xp;
+                playerJoinDateDisplay.textContent = new Date(userProfile.joinDate).toLocaleDateString();
+                titleDisplay.textContent = getTitle(userProfile.xp);
+            }
+        }
+
+        function getTitle(xp) {
+            if (xp < 1000) return "초보자";
+            if (xp < 3000) return "노력가";
+            if (xp < 7000) return "도전자";
+            if (xp < 15000) return "전문가";
+            if (xp < 30000) return "마스터";
+            return "전설의 코드 파인더";
+        }
+        
+        // --- Game Logic ---
+
+        // 게임 상태를 로컬 스토리지에 저장하는 함수
+        function saveGameState() {
+            const gameState = {
+                attempts,
+                score,
+                history,
+                secretCode,
+                gameMode,
+                codeLength,
+                colorCount,
+                allowDuplicates: allowDuplicatesCheckbox.checked,
+                gameStartedAt: gameStartedAt ? gameStartedAt.getTime() : null,
+                gameTime,
+            };
+            localStorage.setItem('mastermindGameState', JSON.stringify(gameState));
+            saveStatusDisplay.textContent = '게임이 저장되었습니다!';
+            setTimeout(() => {
+                saveStatusDisplay.textContent = '';
+            }, 3000);
+        }
+
+        // 로컬 스토리지에서 게임 상태를 불러오는 함수
+        function loadGameState() {
+            const savedState = JSON.parse(localStorage.getItem('mastermindGameState'));
+            if (!savedState) {
+                const messageBox = document.createElement('div');
+                messageBox.textContent = '저장된 게임이 없습니다.';
+                messageBox.style.cssText = `
+                    position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+                    background-color: #f97316; color: white; padding: 10px 20px;
+                    border-radius: 8px; z-index: 1000; animation: fadeOut 3s forwards;
+                `;
+                document.body.appendChild(messageBox);
+                setTimeout(() => messageBox.remove(), 3000);
+                return;
+            }
+
+            attempts = savedState.attempts;
+            score = savedState.score;
+            history = savedState.history;
+            secretCode = savedState.secretCode;
+            gameMode = savedState.gameMode;
+            codeLength = savedState.codeLength;
+            colorCount = savedState.colorCount;
+            allowDuplicatesCheckbox.checked = savedState.allowDuplicates;
+            gameStartedAt = savedState.gameStartedAt ? new Date(savedState.gameStartedAt) : null;
+            gameTime = savedState.gameTime;
+
+            startScreenModal.classList.remove('open');
+            gameContainer.classList.remove('hidden');
+            additionalContentContainer.classList.add('hidden');
+            updateGameSettingsFromState();
+            renderGuessHistory();
+            renderSelectors();
+            renderCurrentGuessRow();
+            updateGameInfoUI();
+            pauseButton.classList.remove('hidden');
+            resumeButton.classList.add('hidden');
+            startTimer();
+        }
+
+        function updateGameSettingsFromState() {
+            colorCountInput.value = colorCount;
+            codeLengthInput.value = codeLength;
+            modeToggle.textContent = gameMode === 'color' ? '색상 모드' : '숫자 모드';
+        }
+
+        function updateGameInfoUI() {
+            attemptsCountDisplay.textContent = attempts;
+            scoreDisplay.textContent = score;
+            gameTimeDisplay.textContent = gameTime;
+        }
+        
+        function startTimer() {
+            if (timerInterval) clearInterval(timerInterval);
+            const startTime = new Date().getTime() - gameTime * 1000;
+            timerInterval = setInterval(() => {
+                if (!isPaused) {
+                    gameTime = Math.floor((new Date().getTime() - startTime) / 1000);
+                    gameTimeDisplay.textContent = gameTime;
+                }
+            }, 1000);
+        }
+        
+        function pauseGame() {
+            isPaused = true;
+            clearInterval(timerInterval);
+            pauseOverlay.classList.remove('hidden');
+            document.getElementById('check-button').disabled = true;
+            document.getElementById('hint-button').disabled = true;
+            document.getElementById('suggest-guess-button').disabled = true;
+            pauseButton.classList.add('hidden');
+            resumeButton.classList.remove('hidden');
+        }
+        
+        function resumeGame() {
+            isPaused = false;
+            pauseOverlay.classList.add('hidden');
+            document.getElementById('check-button').disabled = false;
+            document.getElementById('hint-button').disabled = false;
+            document.getElementById('suggest-guess-button').disabled = false;
+            pauseButton.classList.remove('hidden');
+            resumeButton.classList.add('hidden');
+            startTimer();
+        }
+
+
+        function renderGuessHistory() {
+            guessHistoryDiv.innerHTML = '';
+            history.forEach(item => {
+                const historyItem = createHistoryItem(item.guess, item.hits, item.blows, item.misses);
+                guessHistoryDiv.prepend(historyItem);
+            });
+        }
+        
+        function generateSecretCode() {
+            secretCode = [];
+            const palette = gameMode === 'color' ? COLORS.slice(0, colorCount) : NUMBERS.slice(0, colorCount);
+            if (allowDuplicatesCheckbox.checked) {
+                for (let i = 0; i < codeLength; i++) {
+                    const randomIndex = Math.floor(Math.random() * palette.length);
+                    secretCode.push(palette[randomIndex]);
+                }
+            } else {
+                const shuffledPalette = [...palette].sort(() => 0.5 - Math.random());
+                secretCode = shuffledPalette.slice(0, codeLength);
+            }
+        }
+
+        function checkGuess() {
+            if (isPaused) return;
+
+            playCheckSound();
+            if (currentGuess.includes(null) || currentGuess.length !== codeLength) {
+                const message = '모든 칸을 채워주세요!';
+                const messageBox = document.createElement('div');
+                messageBox.textContent = message;
+                messageBox.style.cssText = `
+                    position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+                    background-color: #f97316; color: white; padding: 10px 20px;
+                    border-radius: 8px; z-index: 1000; animation: fadeOut 3s forwards;
+                `;
+                document.body.appendChild(messageBox);
+                setTimeout(() => messageBox.remove(), 3000);
+                return;
+            }
+
+            attempts++;
+            let hits = 0;
+            let blows = 0;
+            let tempSecret = [...secretCode];
+            let tempGuess = [...currentGuess];
+
+            // 1. Hit (position and value match)
+            for (let i = 0; i < codeLength; i++) {
+                if (tempGuess[i] !== null && tempGuess[i] === tempSecret[i]) {
+                    hits++;
+                    tempSecret[i] = null;
+                    tempGuess[i] = null;
+                }
+            }
+
+            // 2. Blow (correct value, wrong position)
+            for (let i = 0; i < codeLength; i++) {
+                if (tempGuess[i] !== null) {
+                    const secretIndex = tempSecret.indexOf(tempGuess[i]);
+                    if (secretIndex !== -1) {
+                        blows++;
+                        tempSecret[secretIndex] = null;
+                    }
+                }
+            }
+            
+            const misses = codeLength - hits - blows;
+            score = (hits * 100) + (blows * 50);
+
+            const historyItem = createHistoryItem(currentGuess, hits, blows, misses);
+            guessHistoryDiv.prepend(historyItem);
+            history.push({ guess: [...currentGuess], hits, blows, misses });
+            saveGameState();
+
+            if (hits === codeLength) {
+                endGame(true);
+            } else if (attempts >= 10) {
+                endGame(false);
+            }
+            
+            renderCurrentGuessRow();
+            updateGameInfoUI();
+        }
+
+        function endGame(isWin) {
+            clearInterval(timerInterval);
+            
+            if (isWin) {
+                playWinSound();
+                gameContainer.classList.add('win-glow');
+                score += 500 + (1000 / attempts);
+                winStreak++;
+                modalTitle.textContent = "승리! SUNK!";
+                modalContent.textContent = `비밀 코드는 ${secretCode.join(', ')}였습니다!`;
+            } else {
+                playLoseSound();
+                gameContainer.classList.add('lose-shake');
+                winStreak = 0;
+                modalTitle.textContent = "패배..";
+                modalContent.textContent = `비밀 코드는 ${secretCode.join(', ')}였습니다.`;
+            }
+
+            finalStatsDisplay.innerHTML = `시도 횟수: ${attempts}<br>총 점수: ${score}<br>게임 시간: ${gameTime}초`;
+            
+            updateXP(isWin, gameTime);
+            saveRecord(isWin, gameTime);
+            updatePlayerInfoUI();
+
+            gameModal.classList.add('open');
+            localStorage.removeItem('mastermindGameState');
+        }
+
+        function updateXP(isWin, gameTime) {
+            const difficultyMultiplier = (codeLength * colorCount);
+            const baseXP = isWin ? 500 * difficultyMultiplier : 100 * difficultyMultiplier;
+            const attemptsBonus = isWin ? Math.max(0, 500 - (attempts * 20)) : 0;
+            const timeBonus = Math.max(0, 200 - Math.floor(gameTime / 5));
+            const totalXP = baseXP + attemptsBonus + timeBonus;
+
+            if (userProfile) {
+                userProfile.xp += totalXP;
+                if (userProfile.xp >= userProfile.level * 1000) {
+                    userProfile.xp = 0;
+                    userProfile.level++;
+                }
+                const users = getUsers();
+                users[userProfile.username] = userProfile;
+                saveUsers(users);
+                saveCurrentUser();
+            }
+        }
+
+        function saveRecord(isWin, gameTime) {
+            if (!userProfile) return;
+            const record = {
+                date: new Date().toISOString(),
+                win: isWin,
+                attempts,
+                score,
+                time: gameTime,
+                winStreak,
+                mode: gameMode,
+                codeLength,
+                colorCount,
+                allowDuplicates: allowDuplicatesCheckbox.checked,
+                rank: getRankByScore(score),
+                difficulty: getDifficultyRank()
+            };
+            userProfile.records.push(record);
+
+            if (record.score > userProfile.highestScore) {
+                userProfile.highestScore = record.score;
+            }
+            if (record.time < userProfile.shortestTime || userProfile.shortestTime === null) {
+                userProfile.shortestTime = record.time;
+            }
+            if (record.attempts < userProfile.fewestAttempts || userProfile.fewestAttempts === null) {
+                userProfile.fewestAttempts = record.attempts;
+            }
+
+            const users = getUsers();
+            users[userProfile.username] = userProfile;
+            saveUsers(users);
+            saveCurrentUser();
+        }
+        
+        function getRankByScore(score) {
+            if (score >= 2000) return 'S+';
+            if (score >= 1500) return 'S';
+            if (score >= 1000) return 'A';
+            if (score >= 700) return 'B';
+            return 'C';
+        }
+
+        function getDifficultyRank() {
+            const complexity = codeLength * colorCount * (allowDuplicates ? 0.8 : 1.2);
+            if (complexity > 40) return 'Expert';
+            if (complexity > 20) return 'Hard';
+            return 'Normal';
+        }
+
+        // --- UI/UX ---
+        
+        function initGame(isLoad = false) {
+            startScreenModal.classList.remove('open');
+            gameContainer.classList.remove('hidden');
+            additionalContentContainer.classList.add('hidden');
+            
+            if (!isLoad) {
+                startGame();
+            }
+        }
+
+        function startGame() {
+            gameModal.classList.remove('open');
+            gameContainer.classList.remove('win-glow', 'lose-shake');
+            
+            attempts = 0;
+            score = 0;
+            gameTime = 0;
+            history = [];
+            guessHistoryDiv.innerHTML = '';
+            
+            updateGameSettings();
+            generateSecretCode();
+            renderCurrentGuessRow();
+            renderSelectors();
+            gameStartedAt = new Date();
+            isPaused = false;
+            pauseOverlay.classList.add('hidden');
+            document.getElementById('check-button').disabled = false;
+            document.getElementById('hint-button').disabled = false;
+            document.getElementById('suggest-guess-button').disabled = false;
+            pauseButton.classList.remove('hidden');
+            resumeButton.classList.add('hidden');
+            startTimer();
+        }
+
+        function updateGameSettings() {
+            colorCount = parseInt(colorCountInput.value, 10) || 6;
+            codeLength = parseInt(codeLengthInput.value, 10) || 4;
+
+            if (colorCount < 1) colorCount = 1;
+            if (colorCount > 16) colorCount = 16;
+            if (codeLength < 1) codeLength = 1;
+            if (codeLength > 16) codeLength = 16;
+            
+            if (gameMode === 'color') {
+                modeToggle.textContent = '색상 모드';
+            } else {
+                modeToggle.textContent = '숫자 모드';
+            }
+        }
+
+        function renderCurrentGuessRow() {
+            currentGuessRow.innerHTML = '';
+            currentGuess = Array(codeLength).fill(null);
+            activeGuessIndex = 0;
+            for (let i = 0; i < codeLength; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'color-cell number-cell current-guess-cell';
+                cell.style.backgroundColor = '#6b7280';
+                cell.textContent = '?';
+                cell.dataset.index = i;
+                if (i === activeGuessIndex) {
+                    cell.classList.add('active');
+                }
+                cell.onclick = (e) => {
+                    if (isPaused) return;
+                    document.querySelectorAll('.current-guess-cell').forEach(c => c.classList.remove('active'));
+                    e.target.classList.add('active');
+                    activeGuessIndex = parseInt(e.target.dataset.index);
+                };
+                currentGuessRow.appendChild(cell);
+            }
+        }
+
+        function renderSelectors() {
+            selectorsContainer.innerHTML = '';
+            const palette = gameMode === 'color' ? COLORS.slice(0, colorCount) : NUMBERS.slice(0, colorCount);
+            palette.forEach((val) => {
+                const cell = document.createElement('div');
+                cell.className = 'selector-cell cursor-pointer';
+                if (gameMode === 'color') {
+                    cell.style.backgroundColor = val;
+                } else {
+                    cell.textContent = val;
+                    cell.style.backgroundColor = '#374151';
+                }
+                cell.onclick = () => {
+                    if (isPaused) return;
+                    if (activeGuessIndex !== -1 && activeGuessIndex < codeLength) {
+                        currentGuess[activeGuessIndex] = val;
+                        const guessCell = currentGuessRow.children[activeGuessIndex];
+                        if (gameMode === 'color') {
+                            guessCell.style.backgroundColor = val;
+                            guessCell.textContent = '';
+                        } else {
+                            guessCell.textContent = val;
+                            guessCell.style.backgroundColor = '#374151';
+                        }
+                        
+                        // Automatically move to the next empty cell
+                        let nextIndex = activeGuessIndex + 1;
+                        while(nextIndex < codeLength && currentGuess[nextIndex] !== null) {
+                            nextIndex++;
+                        }
+                        if (nextIndex < codeLength) {
+                            activeGuessIndex = nextIndex;
+                            document.querySelectorAll('.current-guess-cell').forEach(c => c.classList.remove('active'));
+                            currentGuessRow.children[activeGuessIndex].classList.add('active');
+                        } else {
+                            activeGuessIndex = -1; // No more empty cells
+                            document.querySelectorAll('.current-guess-cell').forEach(c => c.classList.remove('active'));
+                        }
+                    }
+                };
+                selectorsContainer.appendChild(cell);
+            });
+        }
+
+        function createHistoryItem(guess, hits, blows, misses) {
+            const item = document.createElement('div');
+            item.className = 'flex items-center justify-between p-3 rounded-xl mb-2 bg-gray-800 transition-colors duration-300';
+            
+            const guessRow = document.createElement('div');
+            guessRow.className = 'flex gap-2';
+            guess.forEach(val => {
+                const cell = document.createElement('div');
+                cell.className = 'color-cell cursor-not-allowed';
+                if (gameMode === 'color') {
+                    cell.style.backgroundColor = val;
+                    cell.textContent = '';
+                } else {
+                    cell.textContent = val;
+                    cell.style.backgroundColor = '#374151';
+                }
+                guessRow.appendChild(cell);
+            });
+            
+            const feedbackRow = document.createElement('div');
+            feedbackRow.className = 'flex gap-1';
+            for (let i = 0; i < hits; i++) {
+                const peg = document.createElement('div');
+                peg.className = 'feedback-peg hit';
+                feedbackRow.appendChild(peg);
+            }
+            for (let i = 0; i < blows; i++) {
+                const peg = document.createElement('div');
+                peg.className = 'feedback-peg blow';
+                feedbackRow.appendChild(peg);
+            }
+            for (let i = 0; i < misses; i++) {
+                const peg = document.createElement('div');
+                peg.className = 'feedback-peg miss';
+                feedbackRow.appendChild(peg);
+            }
+            
+            item.appendChild(guessRow);
+            item.appendChild(feedbackRow);
+            return item;
+        }
+
+        // --- Tabs and Content Management ---
+        function renderTabContent(tabId) {
+            additionalContentContainer.classList.remove('hidden');
+            gameContainer.classList.add('hidden');
+            
+            // Activate the correct tab button
+            document.querySelectorAll('.tab-button').forEach(t => t.classList.remove('active'));
+            document.getElementById(`${tabId}-tab`).classList.add('active');
+
+            switch (tabId) {
+                case 'stats':
+                    renderStatsPage();
+                    break;
+                case 'minigame':
+                    contentDisplay.innerHTML = `<div class="text-center py-8 text-xl text-gray-400">미니게임 기능은 준비 중입니다.</div>`;
+                    break;
+                case 'chat':
+                    renderChatPage();
+                    break;
+                case 'history':
+                    renderHistoryPage();
+                    break;
+                case 'how-to-play':
+                    renderHowToPlayPage();
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        function renderStatsPage() {
+            if (!userProfile) {
+                contentDisplay.innerHTML = `<div class="text-center py-8 text-xl text-gray-400">로그인해야 통계를 볼 수 있습니다.</div>`;
+                return;
+            }
+
+            contentDisplay.innerHTML = `
+                <div class="space-y-8">
+                    <div>
+                        <h2 class="text-2xl font-bold mb-4">👑 나의 프로필</h2>
+                        <div class="bg-gray-800 p-4 rounded-lg flex items-center space-x-4">
+                            <i class="fa-solid fa-user-circle fa-4x text-gray-400"></i>
+                            <div>
+                                <div class="text-xl font-bold">${userProfile.username}</div>
+                                <div class="text-sm text-gray-400">가입일: ${new Date(userProfile.joinDate).toLocaleDateString()}</div>
+                                <div class="text-sm text-gray-400">현재 칭호: ${getTitle(userProfile.xp)}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h2 class="text-2xl font-bold mb-4">🏆 최고 기록</h2>
+                        <ul class="space-y-2">
+                            <li class="p-3 bg-gray-800 rounded-lg flex justify-between items-center">
+                                <span>최고 점수:</span> <span class="font-bold text-lg">${userProfile.highestScore} 점</span>
+                            </li>
+                            <li class="p-3 bg-gray-800 rounded-lg flex justify-between items-center">
+                                <span>최단 시간:</span> <span class="font-bold text-lg">${userProfile.shortestTime !== null ? userProfile.shortestTime + '초' : '기록 없음'}</span>
+                            </li>
+                            <li class="p-3 bg-gray-800 rounded-lg flex justify-between items-center">
+                                <span>최소 시도:</span> <span class="font-bold text-lg">${userProfile.fewestAttempts !== null ? userProfile.fewestAttempts + '회' : '기록 없음'}</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div>
+                        <h2 class="text-2xl font-bold mb-4">📈 나의 게임 기록</h2>
+                        <div id="my-records-list" class="max-h-[300px] overflow-y-auto pr-4 scrollbar-thin scrollbar-thumb-gray-500 scrollbar-track-gray-800 space-y-4"></div>
+                    </div>
+
+                    <div>
+                        <h2 class="text-2xl font-bold mb-4">🌎 전체 랭킹 (점수)</h2>
+                        <div id="global-rank-list" class="space-y-2"></div>
+                    </div>
+                </div>
+            `;
+            renderMyRecords();
+            renderGlobalRank();
+        }
+
+        function renderMyRecords() {
+            const recordsList = document.getElementById('my-records-list');
+            recordsList.innerHTML = '';
+            const records = userProfile.records.sort((a, b) => new Date(b.date) - new Date(a.date));
+            if (records.length === 0) {
+                recordsList.innerHTML = `<div class="text-center text-gray-400">아직 플레이 기록이 없습니다.</div>`;
+                return;
+            }
+
+            records.forEach(record => {
+                const recordItem = document.createElement('div');
+                recordItem.className = 'p-4 rounded-lg bg-gray-800 border border-gray-700';
+                const date = new Date(record.date).toLocaleString();
+                const status = record.win ? '승리' : '패배';
+                const statusColor = record.win ? 'text-green-400' : 'text-red-400';
+                
+                recordItem.innerHTML = `
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="font-bold text-lg">${record.mode === 'color' ? '색상 모드' : '숫자 모드'}</span>
+                        <span class="text-sm text-gray-400">${date}</span>
+                    </div>
+                    <div class="flex flex-wrap justify-between text-sm space-y-1">
+                        <span>결과: <span class="${statusColor}">${status}</span></span>
+                        <span>랭크: <span class="font-bold">${record.rank}</span></span>
+                        <span>난이도: ${record.difficulty}</span>
+                        <span>점수: ${record.score}</span>
+                        <span>시도: ${record.attempts}</span>
+                        <span>시간: ${record.time}초</span>
+                    </div>
+                `;
+                recordsList.appendChild(recordItem);
+            });
+        }
+
+        function renderGlobalRank() {
+            const rankList = document.getElementById('global-rank-list');
+            rankList.innerHTML = '';
+            const users = getUsers();
+            const rankedUsers = Object.keys(users).map(username => ({
+                username,
+                highestScore: users[username].highestScore || 0
+            })).sort((a, b) => b.highestScore - a.highestScore).slice(0, 10);
+
+            if (rankedUsers.length === 0) {
+                rankList.innerHTML = `<div class="text-center text-gray-400">아직 랭킹 기록이 없습니다.</div>`;
+                return;
+            }
+
+            rankedUsers.forEach((user, index) => {
+                const rankItem = document.createElement('div');
+                rankItem.className = 'flex justify-between items-center p-3 rounded-lg bg-gray-800';
+                if (user.username === userProfile.username) {
+                    rankItem.classList.add('bg-indigo-700', 'font-bold');
+                }
+                
+                rankItem.innerHTML = `
+                    <div class="flex items-center space-x-4">
+                        <span class="text-xl font-bold w-6 text-center">${index + 1}</span>
+                        <span>${user.username}</span>
+                    </div>
+                    <span class="text-lg">${user.highestScore} 점</span>
+                `;
+                rankList.appendChild(rankItem);
+            });
+        }
+
+        function renderHistoryPage() {
+            contentDisplay.innerHTML = `
+                <h2 class="text-2xl font-bold mb-4 text-center">게임의 역사: Cows and Bulls에서 Hit and Blow까지</h2>
+                <div class="space-y-6 text-gray-300">
+                    <p>
+                        '히트 앤 블로우'의 역사는 고대 수학 퍼즐과 보드 게임에서 그 기원을 찾을 수 있습니다. 가장 잘 알려진 초기 형태는 'Cows and Bulls'(카우즈 앤 불즈)라는 게임으로, 종이와 연필만으로 플레이할 수 있었습니다. 이 게임은 플레이어 한 명이 비밀 숫자를 정하고, 다른 플레이어가 숫자를 추측하며 정답의 숫자가 맞았는지, 그리고 위치까지 맞았는지를 '불'(Bulls)과 '카우'(Cows)라는 용어로 피드백을 받는 방식이었습니다. 여기서 '불'은 숫자와 위치가 모두 맞은 것을 의미하며, '카우'는 숫자는 맞지만 위치는 틀린 것을 의미합니다.
+                    </p>
+                    <p>
+                        시간이 흐르며 이 게임은 1970년대에 'Mastermind'(마스터마인드)라는 이름의 보드 게임으로 상업화되면서 크게 인기를 얻었습니다. '마스터마인드'는 숫자 대신 다채로운 색상의 페그(Peg)를 사용하며, '불'과 '카우'는 각각 검은색과 흰색 페그로 대체되었습니다. 이 시기부터 게임은 시각적으로 더욱 흥미로워졌고, 전 세계적으로 널리 퍼지게 됩니다.
+                    </p>
+                    <p>
+                        오늘날 우리가 즐기는 '히트 앤 블로우'나 '숫자 야구'는 이 '마스터마인드'의 개념을 이어받은 게임들입니다. '히트'(Hit)는 숫자와 위치가 모두 맞는 것을, '블로우'(Blow)는 숫자만 맞고 위치는 틀린 것을 의미하여 '불'과 '카우'의 용어를 대체했습니다. 특히 '숫자 야구'라는 이름은 우리나라에서 유래된 것으로, 정답의 '숫자'를 '안타'로, 위치까지 맞힌 것을 '홈런'으로 비유하며 야구의 용어와 결합된 변형 게임입니다. 이 게임은 'NS 51worldwidegames'와 같은 게임 컬렉션에도 포함되어 많은 사람들에게 사랑받는 고전 퍼즐 게임으로 자리 잡았습니다.
+                    </p>
+                </div>
+            `;
+        }
+
+        function renderHowToPlayPage() {
+            contentDisplay.innerHTML = `
+                <h2 class="text-2xl font-bold mb-4 text-center">게임 플레이 방법</h2>
+                <div class="space-y-6 text-gray-300">
+                    <p>
+                        '히트 앤 블로우'는 상대방이 정한 비밀 코드를 추리하여 맞히는 논리 게임입니다. 플레이 방법은 간단합니다.
+                    </p>
+                    <ul class="list-disc list-inside space-y-2">
+                        <li><strong>비밀 코드:</strong> 게임이 시작되면, 컴퓨터가 정해진 길이와 개수의 색상 또는 숫자로 비밀 코드를 만듭니다. 이 코드는 중복될 수 있으며, 설정에 따라 중복이 허용되지 않을 수도 있습니다.</li>
+                        <li><strong>추리하기:</strong> 플레이어는 비밀 코드와 똑같은 길이의 추측 코드를 만듭니다. 화면 하단에서 색상이나 숫자를 선택하여 추측 코드를 완성하세요. 추측 코드를 입력한 후 '확인' 버튼을 누릅니다.</li>
+                        <li><strong>피드백 받기:</strong> '확인' 버튼을 누르면, 추측 결과에 대한 피드백이 '히트'와 '블로우'로 표시됩니다.
+                            <ul class="list-circle list-inside ml-4 mt-2">
+                                <li><strong>히트 (빨간색 동그라미):</strong> 추측한 색상/숫자가 비밀 코드에 포함되어 있으며, 위치까지 정확히 일치하는 개수를 의미합니다.</li>
+                                <li><strong>블로우 (초록색 동그라미):</strong> 추측한 색상/숫자가 비밀 코드에 포함되어 있지만, 위치는 틀린 개수를 의미합니다.</li>
+                            </ul>
+                        </li>
+                        <li><strong>반복하기:</strong> 이 피드백을 바탕으로 새로운 추측을 입력하고 '확인'을 누르세요. 모든 추측이 '히트'가 될 때까지 이 과정을 반복하면 게임에서 승리합니다!</li>
+                        <li><strong>승리와 패배:</strong> 모든 추측이 '히트'가 되면 승리하고, 제한된 횟수 안에 코드를 맞히지 못하면 패배합니다.</li>
+                    </ul>
+                </div>
+            `;
+        }
+
+        function renderChatPage() {
+            contentDisplay.innerHTML = `
+                <div class="flex flex-col h-[550px]">
+                    <div id="chat-messages" class="flex-1 overflow-y-auto p-4 bg-gray-800 rounded-t-lg scrollbar-thin scrollbar-thumb-gray-500 scrollbar-track-gray-800 space-y-4">
+                        <div class="flex items-start">
+                            <i class="fa-solid fa-robot fa-2x text-blue-400"></i>
+                            <div class="ml-4 p-3 rounded-lg bg-gray-700 max-w-xs md:max-w-md">
+                                <p>무엇을 도와드릴까요? 게임에 대한 질문이나 다른 어떤 것이든 물어보세요!</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex p-2 bg-gray-700 rounded-b-lg">
+                        <input type="text" id="chat-input" placeholder="메시지를 입력하세요..." class="flex-1 px-4 py-2 rounded-lg bg-gray-600 text-white placeholder-gray-400 border border-gray-500 focus:outline-none focus:border-indigo-500">
+                        <button id="chat-send-button" class="ml-2 px-6 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white font-bold">전송</button>
+                    </div>
+                </div>
+            `;
+
+            const chatInput = document.getElementById('chat-input');
+            const chatSendButton = document.getElementById('chat-send-button');
+            const chatMessages = document.getElementById('chat-messages');
+            
+            chatSendButton.onclick = () => {
+                sendMessage();
+            };
+            chatInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    sendMessage();
+                }
+            });
+
+            async function sendMessage() {
+                const message = chatInput.value.trim();
+                if (message === '') return;
+
+                appendMessage('user', message);
+                chatInput.value = '';
+                
+                // Add a typing indicator
+                const typingIndicator = document.createElement('div');
+                typingIndicator.id = 'typing-indicator';
+                typingIndicator.className = 'flex items-start';
+                typingIndicator.innerHTML = `
+                    <i class="fa-solid fa-robot fa-2x text-blue-400"></i>
+                    <div class="ml-4 p-3 rounded-lg bg-gray-700 max-w-xs md:max-w-md">
+                        <p>...</p>
+                    </div>
+                `;
+                chatMessages.appendChild(typingIndicator);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+
+                try {
+                    const prompt = `You are a helpful and friendly chatbot for a game called 'Hit and Blow' (or 'Number Baseball'). A user is asking you a question in Korean. Please respond in Korean. Your knowledge base should be focused on the game's rules, history, tips, and general polite conversation. Avoid discussing unrelated topics.
+
+Here is the conversation so far:
+${chatHistory.map(entry => `${entry.role}: ${entry.parts[0].text}`).join('\n')}
+user: ${message}
+
+Your response:`;
+
+                    chatHistory.push({ role: "user", parts: [{ text: message }] });
+                    const payload = { contents: chatHistory };
+                    const apiKey = "";
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+                    
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    const result = await response.json();
+                    const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                    chatMessages.removeChild(typingIndicator);
+                    if (text) {
+                        appendMessage('model', text);
+                        chatHistory.push({ role: "model", parts: [{ text: text }] });
+                    } else {
+                        appendMessage('model', "죄송합니다, 답변을 생성하는 데 문제가 발생했습니다.");
+                    }
+                } catch (error) {
+                    console.error("Gemini API Error:", error);
+                    chatMessages.removeChild(typingIndicator);
+                    appendMessage('model', "죄송합니다, 연결에 문제가 발생했습니다. 다시 시도해 주세요.");
+                }
+            }
+            
+            function appendMessage(role, text) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `flex items-start ${role === 'user' ? 'justify-end' : ''}`;
+                const avatar = document.createElement('i');
+                avatar.className = `fa-solid fa-${role === 'user' ? 'user' : 'robot'} fa-2x ${role === 'user' ? 'text-gray-400' : 'text-blue-400'}`;
+                const messageBubble = document.createElement('div');
+                messageBubble.className = `p-3 rounded-lg max-w-xs md:max-w-md ${role === 'user' ? 'bg-indigo-600 ml-4' : 'bg-gray-700 mr-4'}`;
+                messageBubble.textContent = text;
+                
+                if (role === 'user') {
+                    messageDiv.appendChild(messageBubble);
+                    messageDiv.appendChild(avatar);
+                } else {
+                    messageDiv.appendChild(avatar);
+                    messageDiv.appendChild(messageBubble);
+                }
+                
+                chatMessages.appendChild(messageDiv);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+        }
+
+        // Event listeners
+        function setupEventListeners() {
+            document.getElementById('login-button').onclick = () => {
+                const username = usernameInput.value;
+                const password = passwordInput.value;
+                if (loginUser(username, password)) {
+                    authModal.classList.remove('open');
+                    startScreenModal.classList.add('open');
+                }
+            };
+            document.getElementById('register-button').onclick = () => {
+                const username = usernameInput.value;
+                const password = passwordInput.value;
+                registerUser(username, password);
+            };
+
+            document.getElementById('start-solo-button').onclick = () => {
+                gameMode = 'color';
+                codeLengthInput.value = 4;
+                colorCountInput.value = 6;
+                initGame();
+            };
+            document.getElementById('start-number-button').onclick = () => {
+                gameMode = 'number';
+                codeLengthInput.value = 4;
+                colorCountInput.value = 10;
+                initGame();
+            };
+            
+            document.getElementById('start-random-button').onclick = () => {
+                gameMode = Math.random() < 0.5 ? 'color' : 'number';
+                codeLengthInput.value = Math.floor(Math.random() * (6 - 3 + 1)) + 3;
+                colorCountInput.value = Math.floor(Math.random() * (10 - 6 + 1)) + 6;
+                initGame();
+            };
+            
+            loadGameButton.onclick = () => {
+                loadGameState();
+            };
+
+            document.getElementById('restart-button').onclick = () => {
+                localStorage.removeItem('mastermindGameState');
+                startGame();
+            }
+            
+            document.getElementById('main-menu-button').onclick = () => {
+                if (!isPaused) {
+                    saveGameState();
+                }
+                gameContainer.classList.add('hidden');
+                additionalContentContainer.classList.add('hidden');
+                startScreenModal.classList.add('open');
+                clearInterval(timerInterval);
+            };
+
+            document.getElementById('check-button').onclick = checkGuess;
+            document.getElementById('cancel-button').onclick = renderCurrentGuessRow;
+
+            document.getElementById('new-game-button').onclick = () => {
+                gameModal.classList.remove('open');
+                startGame();
+            };
+            
+            document.getElementById('save-game-button').onclick = saveGameState;
+            document.getElementById('pause-button').onclick = pauseGame;
+            document.getElementById('resume-button').onclick = resumeGame;
+
+
+            modeToggle.onclick = () => {
+                gameMode = gameMode === 'color' ? 'number' : 'color';
+                if (gameMode === 'color') {
+                    modeToggle.textContent = '색상 모드';
+                    colorCountInput.value = 6;
+                    codeLengthInput.value = 4;
+                } else {
+                    modeToggle.textContent = '숫자 모드';
+                    colorCountInput.value = 10;
+                    codeLengthInput.value = 4;
+                }
+                startGame();
+            };
+            
+            // New tab buttons
+            document.getElementById('view-stats-button').onclick = () => renderTabContent('stats');
+            document.getElementById('view-history-button').onclick = () => renderTabContent('history');
+            document.getElementById('view-how-to-play-button').onclick = () => renderTabContent('how-to-play');
+            document.getElementById('chat-button').onclick = () => renderTabContent('chat');
+            
+            const tabs = document.querySelectorAll('.tab-button');
+            tabs.forEach(tab => tab.addEventListener('click', (e) => {
+                const tabId = e.target.id.replace('-tab', '');
+                renderTabContent(tabId);
+            }));
+            
+            document.getElementById('back-to-main-button').onclick = () => {
+                additionalContentContainer.classList.add('hidden');
+                gameContainer.classList.remove('hidden');
+                startScreenModal.classList.add('open');
+            };
+
+            const currentUser = loadCurrentUser();
+            if (currentUser) {
+                userProfile = currentUser;
+                authModal.classList.remove('open');
+                startScreenModal.classList.add('open');
+                updatePlayerInfoUI();
+            }
+        }
+        
+        window.onload = () => {
+            setupEventListeners();
+            renderCurrentGuessRow();
+            renderSelectors();
+            const currentUser = loadCurrentUser();
+            if (!currentUser) {
+                authModal.classList.add('open');
+            } else {
+                startScreenModal.classList.add('open');
+            }
+        };
+    </script>
+</body>
+</html>
