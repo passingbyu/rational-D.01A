@@ -15,7 +15,7 @@
             text-align: center;
         }
 
-        .menu {
+        .menu, .settings-menu {
             position: absolute;
             top: 50%;
             left: 50%;
@@ -44,11 +44,11 @@
             background-color: #777;
         }
 
-        .difficulty {
+        .difficulty, .language, .modes {
             margin-top: 20px;
         }
 
-        .difficulty button {
+        .difficulty button, .language button, .modes button {
             margin: 5px;
         }
 
@@ -87,24 +87,37 @@
     <div id="main-menu" class="menu">
         <h1 id="title-text">Ghost Hunting Game</h1>
         <button id="start-game">Start Game</button>
+        <button id="open-settings">Settings</button>
         <button id="view-records">View Records</button>
         <button id="view-badges">View Badges</button>
+    </div>
+
+    <div id="settings-menu" class="settings-menu" style="display: none;">
+        <h2 id="settings-title">Game Settings</h2>
+
         <div class="difficulty">
             <p id="difficulty-text">Select Difficulty:</p>
             <button data-difficulty="unlimited">Unlimited Lives</button>
             <button data-difficulty="easy">Easy</button>
-            <button data-difficulty="normal">Normal</button>
+            <button data-difficulty="normal" class="active">Normal</button>
             <button data-difficulty="hard">Hard</button>
             <button data-difficulty="expert">Expert</button>
         </div>
-        <div>
+
+        <div class="language">
+            <p>Select Language:</p>
             <button id="language-en">English</button>
             <button id="language-ko">한국어</button>
         </div>
-        <div>
+
+        <div class="modes">
+            <p>Game Modes:</p>
             <button id="auto-clear">Toggle Auto Clear Mode</button>
-            <button id="replay-last">Replay Last Game</button>
+            <button id="help-mode">Toggle Help Mode</button>
         </div>
+
+        <button id="save-settings">Save Settings</button>
+        <button id="back-to-menu">Back to Main Menu</button>
     </div>
 
     <canvas id="game-canvas" width="800" height="600" style="display: none;"></canvas>
@@ -135,9 +148,14 @@
         const canvas = document.getElementById('game-canvas');
         const ctx = canvas.getContext('2d');
         const mainMenu = document.getElementById('main-menu');
+        const settingsMenu = document.getElementById('settings-menu');
         const endMenu = document.getElementById('end-menu');
         const pauseMenu = document.getElementById('pause-menu');
         const badgesMenu = document.getElementById('badges');
+
+        const openSettingsBtn = document.getElementById('open-settings');
+        const backToMenuBtn = document.getElementById('back-to-menu');
+        const saveSettingsBtn = document.getElementById('save-settings');
         const startGameBtn = document.getElementById('start-game');
         const viewRecordsBtn = document.getElementById('view-records');
         const viewBadgesBtn = document.getElementById('view-badges');
@@ -146,175 +164,90 @@
         const resumeGameBtn = document.getElementById('resume-game');
         const exitToMainBtn = document.getElementById('exit-to-main');
         const closeBadgesBtn = document.getElementById('close-badges');
-        const endMessage = document.getElementById('end-message');
-        const rankMessage = document.getElementById('rank-message');
-        const badgeMessage = document.getElementById('badge-message');
-        const timeTaken = document.getElementById('time-taken');
-        const difficultyButtons = document.querySelectorAll('.difficulty button');
-        const badgeList = document.getElementById('badge-list');
-        const badgeProgress = document.getElementById('badge-progress');
-        const languageEnBtn = document.getElementById('language-en');
-        const languageKoBtn = document.getElementById('language-ko');
         const autoClearBtn = document.getElementById('auto-clear');
-        const replayLastBtn = document.getElementById('replay-last');
+        const helpModeBtn = document.getElementById('help-mode');
 
-        let gameActive = false;
-        let gamePaused = false;
-        let autoClearMode = false;
-        let replayData = [];
+        const difficultyButtons = document.querySelectorAll('.difficulty button');
         let selectedDifficulty = 'normal';
-        let gameOverCount = 0;
+        let autoClearMode = false;
         let helpMode = false;
-        const ghosts = [];
-        const badges = [];
-        const translations = {
-            en: {
-                title: 'Ghost Hunting Game',
-                startGame: 'Start Game',
-                viewRecords: 'View Records',
-                viewBadges: 'View Badges',
-                selectDifficulty: 'Select Difficulty:',
-                pause: 'Game Paused',
-                resume: 'Resume',
-                exitToMain: 'Exit to Main Menu',
-                gameOver: 'Game Over',
-                retry: 'Retry',
-                exit: 'Exit',
-                badgesTitle: 'Your Badges',
-                badgesCollected: 'Badges Collected:',
-                helpMode: 'Help Mode Activated: Difficulty Reduced',
-                autoClear: 'Auto Clear Mode Activated',
-                replay: 'Replaying Last Game',
-            },
-            ko: {
-                title: '유령 사냥 게임',
-                startGame: '게임 시작',
-                viewRecords: '기록 보기',
-                viewBadges: '뱃지 보기',
-                selectDifficulty: '난이도 선택:',
-                pause: '게임 일시정지',
-                resume: '계속하기',
-                exitToMain: '메인 메뉴로',
-                gameOver: '게임 오버',
-                retry: '다시 하기',
-                exit: '종료',
-                badgesTitle: '획득한 뱃지',
-                badgesCollected: '획득한 뱃지:',
-                helpMode: '도움 모드 활성화: 난이도 감소',
-                autoClear: '자동 클리어 모드 활성화',
-                replay: '이전 게임 재생 중',
-            },
+
+        let gameSettings = {
+            difficulty: 'normal',
+            autoClearMode: false,
+            helpMode: false,
+            language: 'en',
         };
-        let currentLanguage = 'en';
 
-        function applyTranslations() {
-            const t = translations[currentLanguage];
-            document.getElementById('title-text').textContent = t.title;
-            startGameBtn.textContent = t.startGame;
-            viewRecordsBtn.textContent = t.viewRecords;
-            viewBadgesBtn.textContent = t.viewBadges;
-            document.getElementById('difficulty-text').textContent = t.selectDifficulty;
-            document.getElementById('pause-text').textContent = t.pause;
-            resumeGameBtn.textContent = t.resume;
-            exitToMainBtn.textContent = t.exitToMain;
-            endMessage.textContent = t.gameOver;
-            retryGameBtn.textContent = t.retry;
-            exitGameBtn.textContent = t.exit;
-            document.getElementById('badges-title').textContent = t.badgesTitle;
-        }
-
-        languageEnBtn.addEventListener('click', () => {
-            currentLanguage = 'en';
-            applyTranslations();
+        openSettingsBtn.addEventListener('click', () => {
+            mainMenu.style.display = 'none';
+            settingsMenu.style.display = 'block';
         });
 
-        languageKoBtn.addEventListener('click', () => {
-            currentLanguage = 'ko';
-            applyTranslations();
+        backToMenuBtn.addEventListener('click', () => {
+            settingsMenu.style.display = 'none';
+            mainMenu.style.display = 'block';
+        });
+
+        saveSettingsBtn.addEventListener('click', () => {
+            gameSettings.difficulty = selectedDifficulty;
+            gameSettings.autoClearMode = autoClearMode;
+            gameSettings.helpMode = helpMode;
+            console.log('Settings saved:', gameSettings);
+            alert('Settings Saved!');
+        });
+
+        difficultyButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                difficultyButtons.forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+                selectedDifficulty = button.dataset.difficulty;
+            });
         });
 
         autoClearBtn.addEventListener('click', () => {
             autoClearMode = !autoClearMode;
-            alert(autoClearMode ? translations[currentLanguage].autoClear : 'Auto Clear Mode Deactivated');
+            alert(autoClearMode ? 'Auto Clear Mode Activated' : 'Auto Clear Mode Deactivated');
         });
 
-        replayLastBtn.addEventListener('click', () => {
-            if (replayData.length === 0) {
-                alert('No previous game data available.');
-                return;
-            }
-            alert(translations[currentLanguage].replay);
-            replayGame();
+        helpModeBtn.addEventListener('click', () => {
+            helpMode = !helpMode;
+            alert(helpMode ? 'Help Mode Activated: Difficulty Reduced' : 'Help Mode Deactivated');
         });
 
-        function replayGame() {
-            gameActive = true;
-            let frame = 0;
-            function step() {
-                if (!gameActive || frame >= replayData.length) {
-                    gameActive = false;
-                    return;
-                }
-                drawFrame(replayData[frame]);
-                frame++;
-                requestAnimationFrame(step);
-            }
-            step();
-        }
-
-        function drawFrame(data) {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            data.ghosts.forEach(ghost => {
-                ctx.fillStyle = ghost.color;
-                ctx.beginPath();
-                ctx.arc(ghost.x, ghost.y, ghost.size, 0, Math.PI * 2);
-                ctx.fill();
-            });
-        }
+        startGameBtn.addEventListener('click', () => {
+            mainMenu.style.display = 'none';
+            startGame();
+        });
 
         function startGame() {
-            replayData = [];
-            gameActive = true;
-            gamePaused = false;
-            const difficulty = difficulties[selectedDifficulty];
-            gameState.score = 0;
-            gameState.health = difficulty.health;
-            gameState.stage = 1;
-            startTime = Date.now();
-
-            ghosts.length = 0;
-            createGhosts(helpMode ? 3 : 5);
-
-            mainMenu.style.display = 'none';
-            endMenu.style.display = 'none';
-            pauseMenu.style.display = 'none';
+            // Initialize the game state based on saved settings
+            console.log(`Starting game with settings:`, gameSettings);
             canvas.style.display = 'block';
+            initializeGame();
+        }
+
+        function initializeGame() {
+            // Add initialization code for game state, enemies, items, etc.
+            console.log('Game initialized with:', gameSettings);
+            spawnItems();
             requestAnimationFrame(gameLoop);
+        }
+
+        function spawnItems() {
+            setInterval(() => {
+                if (Math.random() < 0.1) {
+                    console.log('Item spawned on the field!');
+                }
+            }, 5000);
         }
 
         function gameLoop() {
-            if (!gameActive) return;
-            if (!gamePaused) {
-                updateGameState();
-                drawGameState();
-                saveReplayFrame();
-            }
+            // Core game logic
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            // Draw and update game entities...
             requestAnimationFrame(gameLoop);
         }
-
-        function saveReplayFrame() {
-            const frameData = {
-                ghosts: ghosts.map(ghost => ({
-                    x: ghost.x,
-                    y: ghost.y,
-                    size: ghost.size,
-                    color: ghost.color,
-                })),
-            };
-            replayData.push(frameData);
-        }
-
-        // The rest of the game logic remains unchanged.
     </script>
 </body>
 </html>
